@@ -12,6 +12,41 @@ def web_scrape():
                   'dal', 'phi', 'was', 'nyg', 'gnb', 'min', 'chi', 'det',
                   'tam', 'nor', 'atl', 'car', 'ram', 'crd', 'sfo', 'sea']
 
+    team_mapping = {
+        "nwe": "New England Patriots",
+        "buf": "Buffalo Bills",
+        "crd": "Arizona Cardinals",
+        "atl": "Atlanta Falcons",
+        "rav": "Baltimore Ravens",
+        "car": "Carolina Panthers",
+        "chi": "Chicago Bears",
+        "cin": "Cincinnati Bengals",
+        "cle": "Cleveland Browns",
+        "dal": "Dallas Cowboys",
+        "den": "Denver Broncos",
+        "det": "Detroit Lions",
+        "gnb": "Green Bay Packers",
+        "htx": "Houston Texans",
+        "clt": "Indianapolis Colts",
+        "jax": "Jacksonville Jaguars",
+        "kan": "Kansas City Chiefs",
+        "rai": "Las Vegas Raiders",
+        "sdg": "Los Angeles Chargers",
+        "ram": "Los Angeles Rams",
+        "mia": "Miami Dolphins",
+        "min": "Minnesota Vikings",
+        "nor": "New Orleans Saints",
+        "nyg": "New York Giants",
+        "nyj": "New York Jets",
+        "phi": "Philadelphia Eagles",
+        "pit": "Pittsburgh Steelers",
+        "sfo": "San Francisco 49ers",
+        "sea": "Seattle Seahawks",
+        "tam": "Tampa Bay Buccaneers",
+        "oti": "Tennessee Titans",
+        "was": "Washington Football Team"
+    }
+
     rows_parsed = []
     driver = webdriver.Edge('C:/Program Files/EdgeWebDriver/msedgedriver')
 
@@ -40,7 +75,7 @@ def web_scrape():
 
             parsed_data = {
                 'Year': 2021,
-                'Team': team,
+                'Team': team_mapping[team],
                 'Name': names[int(i/28)],
                 'Age': attrs[i+1].contents[0],
                 'Position': 'qb' if len(attrs[i+2].contents) == 0 else attrs[i+2].contents[0],
