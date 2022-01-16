@@ -15,7 +15,7 @@ def scrape_rush_recieve():
     team_mapping = {
         "nwe": "New England Patriots",
         "buf": "Buffalo Bills",
-        "crd":"Arizona Cardinals",
+        "crd": "Arizona Cardinals",
         "atl": "Atlanta Falcons",
         "rav": "Baltimore Ravens",
         "car": "Carolina Panthers",
