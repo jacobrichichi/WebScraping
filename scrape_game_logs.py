@@ -9,7 +9,7 @@ import DBInfo
 # THE REASON THIS IS ALL DONE WITH THE SAME WEBDRIVER IS THE WEBDRIVER IS PRETTY SLOW, SO ALTHOUGH SEPERATING ALL OF
 # THIS OUT INTO THREE DIFFERENT PY FILES WOULD BE BETTER ORGANIZED, IT WOULD ALSO TAKE FOREVER * 3
 
-def scrape_game_logs(parsed_game_logs, parsed_passing_tuples, parsed_rush_receive_tuples, parsed_snap_count_tuples):
+def scrape_game_logs(parsed_game_logs_info, parsed_game_logs_team_stats, parsed_passing_tuples, parsed_rush_receive_tuples, parsed_snap_count_tuples):
     name_to_abr = {
         "New England Patriots": "NWE",
         "Buffalo Bills": "BUF",
@@ -75,27 +75,37 @@ def scrape_game_logs(parsed_game_logs, parsed_passing_tuples, parsed_rush_receiv
             log_soup = BeautifulSoup(logSourceCode, 'html.parser')
 
             # BUILDING THE OVERALL GAME LOG
-            parsed_game_log = {"GameID": game_id}
+            parsed_game_log = {"GameID": game_id, 'Week': i}
+            parsed_winning_team = {}
+            parsed_losing_team = {}
 
-            OT = get_linescore(parsed_game_log, log_soup)
-            get_scorebox(parsed_game_log, log_soup)
+            OT = get_linescore(parsed_game_log, parsed_winning_team, parsed_losing_team, log_soup)
+
+            parsed_winning_team['GameID'] = game_id
+            parsed_winning_team['IsAWin'] = True
+            parsed_losing_team['GameID'] = game_id
+            parsed_losing_team['IsAWin'] = False
+
+            get_scorebox(parsed_game_log, parsed_winning_team, parsed_losing_team, log_soup)
             get_gameinfo(parsed_game_log, log_soup, OT)
-            get_teamstats(name_to_abr, parsed_game_log, log_soup)
+            get_teamstats(name_to_abr, parsed_game_log, parsed_winning_team, parsed_losing_team, log_soup)
 
 
             print(parsed_game_log)
 
-            parsed_game_logs.append(parsed_game_log)
+            parsed_game_logs_info.append(parsed_game_log)
+            parsed_game_logs_team_stats.append(parsed_winning_team)
+            parsed_game_logs_team_stats.append(parsed_losing_team)
 
             # BUILDING INDIVIDUAL PLAYER GAME LOGS
-            get_snapcounts(log_soup, game_id, parsed_game_log['WinningTeamInfo']['TeamName'],
-                            parsed_game_log['LosingTeamInfo']['TeamName'], parsed_snap_count_tuples)
-            get_playerlogs(log_soup,parsed_passing_tuples, parsed_rush_receive_tuples, game_id)
+           # get_snapcounts(log_soup, game_id, parsed_game_log['WinningTeamInfo']['TeamName'],
+            #                parsed_game_log['LosingTeamInfo']['TeamName'], parsed_snap_count_tuples)
+            #get_playerlogs(log_soup,parsed_passing_tuples, parsed_rush_receive_tuples, game_id)
 
 
 
 
-def get_linescore(parsed_game_log, log_soup):
+def get_linescore(parsed_game_log, parsed_winning_team, parsed_losing_team, log_soup):
 
     # GET LINESCORE
     line_scores = log_soup.find("table", class_='linescore nohover stats_table no_freeze').find('tbody').findAll('tr')
@@ -128,48 +138,65 @@ def get_linescore(parsed_game_log, log_soup):
 
     parsed_game_log['OT'] = OT
 
-    #THROW INFO FROM THIS TABLE INTO DICT
-    top_team_dict = {
-        'TeamName': top_team_name,
-        'FirstQuarter': int(top_team_scores[2].contents[0]),
-        'SecondQuarter': int(top_team_scores[3].contents[0]),
-        'ThirdQuarter': int(top_team_scores[4].contents[0]),
-        'FourthQuarter': int(top_team_scores[5].contents[0]),
-        'OTTotal': top_ot,
-        'TotalScore': top_total
-    }
-
-    bot_team_dict = {
-        'TeamName': bot_team_name,
-        'FirstQuarter': int(bot_team_scores[2].contents[0]),
-        'SecondQuarter': int(bot_team_scores[3].contents[0]),
-        'ThirdQuarter': int(bot_team_scores[4].contents[0]),
-        'FourthQuarter': int(bot_team_scores[5].contents[0]),
-        'OTTotal': bot_ot,
-        'TotalScore': bot_total
-    }
-
-    #WAS THERE A TIE?
-    if top_team_dict['TotalScore'] == bot_team_dict['TotalScore']:
+    if top_total == bot_total:
         parsed_game_log['IsTie'] = True
-        parsed_game_log['WinningTeamInfo'] = top_team_dict
-        parsed_game_log['LosingTeamInfo'] = bot_team_dict
+        parsed_winning_team['TeamName'] = top_team_name
+        parsed_winning_team['FirstQuarter'] = int(top_team_scores[2].contents[0])
+        parsed_winning_team['SecondQuarter'] = int(top_team_scores[3].contents[0])
+        parsed_winning_team['ThirdQuarter'] = int(top_team_scores[4].contents[0])
+        parsed_winning_team['FourthQuarter'] = int(top_team_scores[5].contents[0])
+        parsed_winning_team['OTTotal'] = top_ot
+        parsed_winning_team['TotalScore'] = top_total
+
+        parsed_losing_team['TeamName'] = bot_team_name
+        parsed_losing_team['FirstQuarter'] = int(bot_team_scores[2].contents[0])
+        parsed_losing_team['SecondQuarter'] = int(bot_team_scores[3].contents[0])
+        parsed_losing_team['ThirdQuarter'] = int(bot_team_scores[4].contents[0])
+        parsed_losing_team['FourthQuarter'] = int(bot_team_scores[5].contents[0])
+        parsed_losing_team['OTTotal'] = bot_ot
+        parsed_losing_team['TotalScore'] = bot_total
 
     # WHICH TEAM WON?
-    elif top_team_dict['TotalScore'] > bot_team_dict['TotalScore']:
+    elif top_total > bot_total:
         parsed_game_log['IsTie'] = False
-        parsed_game_log['WinningTeamInfo'] = top_team_dict
-        parsed_game_log['LosingTeamInfo'] = bot_team_dict
+        parsed_winning_team['TeamName'] = top_team_name
+        parsed_winning_team['FirstQuarter'] = int(top_team_scores[2].contents[0])
+        parsed_winning_team['SecondQuarter'] = int(top_team_scores[3].contents[0])
+        parsed_winning_team['ThirdQuarter'] = int(top_team_scores[4].contents[0])
+        parsed_winning_team['FourthQuarter'] = int(top_team_scores[5].contents[0])
+        parsed_winning_team['OTTotal'] = top_ot
+        parsed_winning_team['TotalScore'] = top_total
+
+        parsed_losing_team['TeamName'] = bot_team_name
+        parsed_losing_team['FirstQuarter'] = int(bot_team_scores[2].contents[0])
+        parsed_losing_team['SecondQuarter'] = int(bot_team_scores[3].contents[0])
+        parsed_losing_team['ThirdQuarter'] = int(bot_team_scores[4].contents[0])
+        parsed_losing_team['FourthQuarter'] = int(bot_team_scores[5].contents[0])
+        parsed_losing_team['OTTotal'] = bot_ot
+        parsed_losing_team['TotalScore'] = bot_total
 
     else:
         parsed_game_log['IsTie'] = False
-        parsed_game_log['WinningTeamInfo'] = bot_team_dict
-        parsed_game_log['LosingTeamInfo'] = top_team_dict
+        parsed_winning_team['TeamName'] = bot_team_name
+        parsed_winning_team['FirstQuarter'] = int(bot_team_scores[2].contents[0])
+        parsed_winning_team['SecondQuarter'] = int(bot_team_scores[3].contents[0])
+        parsed_winning_team['ThirdQuarter'] = int(bot_team_scores[4].contents[0])
+        parsed_winning_team['FourthQuarter'] = int(bot_team_scores[5].contents[0])
+        parsed_winning_team['OTTotal'] = bot_ot
+        parsed_winning_team['TotalScore'] = bot_total
+
+        parsed_losing_team['TeamName'] = top_team_name
+        parsed_losing_team['FirstQuarter'] = int(top_team_scores[2].contents[0])
+        parsed_losing_team['SecondQuarter'] = int(top_team_scores[3].contents[0])
+        parsed_losing_team['ThirdQuarter'] = int(top_team_scores[4].contents[0])
+        parsed_losing_team['FourthQuarter'] = int(top_team_scores[5].contents[0])
+        parsed_losing_team['OTTotal'] = top_ot
+        parsed_losing_team['TotalScore'] = top_total
 
     #OT IS NEEDED IN ANOTHER FUNCTION, PASS IT OVER
     return OT
 
-def get_scorebox(parsed_game_log, log_soup):
+def get_scorebox(parsed_game_log, parsed_winning_team, parsed_losing_team, log_soup):
     score_box = log_soup.find("div", class_='scorebox')
     # SCORE BOX DIVS CORRESPOND TO DATA NEEDED
     score_box_divs = score_box.findAll("div")
@@ -180,24 +207,22 @@ def get_scorebox(parsed_game_log, log_soup):
     game_info = score_box.find('div', class_='scorebox_meta')
 
     # VERIFY WHICH TEAM IS WHICH
-    if first_team.find_all("a")[2].contents[0] == parsed_game_log['WinningTeamInfo']:
+    if first_team.find_all("a")[2].contents[0] == parsed_winning_team['TeamName']:
 
-        parsed_game_log['WinningTeamInfo']['Record'] = str(first_team.find_all('div')[3].contents[0])
-        parsed_game_log['WinningTeamInfo']['Coach'] = str(first_team.find('div', class_='datapoint').find('a').contents[0])
+        parsed_winning_team['Record'] = str(first_team.find_all('div')[4].contents[0])
+        parsed_winning_team['Coach'] = str(first_team.find('div', class_='datapoint').find('a').contents[0])
 
-        parsed_game_log['LosingTeamInfo']['Record'] = str(second_team.find_all('div')[3].contents[0])
-        parsed_game_log['LosingTeamInfo']['Coach'] = str(second_team.find('div', class_='datapoint').find('a').contents[0])
+        parsed_losing_team['Record'] = str(second_team.find_all('div')[4].contents[0])
+        parsed_losing_team['Coach'] = str(second_team.find('div', class_='datapoint').find('a').contents[0])
 
     else:
         parsed_first = first_team.find_all('div')
 
-        parsed_game_log['WinningTeamInfo']['Record'] = str(first_team.find_all('div')[4].contents[0])
-        parsed_game_log['WinningTeamInfo']['Coach'] = str(
-            first_team.find('div', class_='datapoint').find('a').contents[0])
+        parsed_winning_team['Record'] = str(first_team.find_all('div')[4].contents[0])
+        parsed_winning_team['Coach'] = str(first_team.find('div', class_='datapoint').find('a').contents[0])
 
-        parsed_game_log['LosingTeamInfo']['Record'] = str(second_team.find_all('div')[4].contents[0])
-        parsed_game_log['LosingTeamInfo']['Coach'] = str(
-            second_team.find('div', class_='datapoint').find('a').contents[0])
+        parsed_losing_team['Record'] = str(second_team.find_all('div')[4].contents[0])
+        parsed_losing_team['Coach'] = str(second_team.find('div', class_='datapoint').find('a').contents[0])
 
     sep_game_info = game_info.findAll('div')
 
@@ -205,6 +230,7 @@ def get_scorebox(parsed_game_log, log_soup):
     # DATE HAS A SMALL PIECE OF UNNECESSARY TEXT IN FRONT, NEED TO PARSE IT OUT
     date_split = sep_game_info[0].contents[0].split()[1:]
 
+    # DATE NEEDS TO BE PROPERLY FORMATTED TO SQL DATE TYPE
     month_to_num = {'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12', 'Jan': '01'}
     day_iso = date_split[1].replace(',', '')
     if len(day_iso) == 1:
@@ -212,6 +238,7 @@ def get_scorebox(parsed_game_log, log_soup):
 
     parsed_game_log['Date'] = date_split[2] + '-' + month_to_num[date_split[0]] + '-' + day_iso
 
+    # TIME NEEDS TO BE PROPERLY FORMATTED TO SQL TIME TYPE
     start_time = str(sep_game_info[1].contents[1][2:])
     start_time_split = start_time.split(':')
     hours = start_time_split[0]
@@ -285,18 +312,18 @@ def get_gameinfo(parsed_game_log, log_soup, OT):
             parsed_game_log['Temperature'] = None
             parsed_game_log['Wind'] = None
 
-def get_teamstats(name_to_abr, parsed_game_log, log_soup):
+def get_teamstats(name_to_abr, parsed_game_log, parsed_winning_team, parsed_losing_team, log_soup):
     team_stats = log_soup.find('table', id='team_stats')
     ts_headers = team_stats.find('thead').find_all('th')
 
     # NEED TO KNOW WHICH TEAM IS WHICH BY NAME, CONVERSION FROM ABBREVIATION ON PFR TO FULL NAME ALLOWS THIS TO BE KNOWN
-    if name_to_abr[parsed_game_log['WinningTeamInfo']['TeamName']] == ts_headers[1].contents[0]:
-        left_team = parsed_game_log['WinningTeamInfo']
-        right_team = parsed_game_log['LosingTeamInfo']
+    if name_to_abr[parsed_winning_team['TeamName']] == ts_headers[1].contents[0]:
+        left_team = parsed_winning_team
+        right_team = parsed_losing_team
 
     else:
-        right_team = parsed_game_log['WinningTeamInfo']
-        left_team = parsed_game_log['LosingTeamInfo']
+        right_team = parsed_winning_team
+        left_team = parsed_losing_team
 
     ts_rows = team_stats.find('tbody').find_all('td', class_='center')
 
@@ -467,71 +494,55 @@ def get_playerlogs(log_soup, parsed_passing_tuples, parsed_rush_receive_tuples, 
             # ADD IT TO THE LIST
             parsed_rush_receive_tuples.append(parsed_rush_receive_tuple)
 
-def store_game_logs_in_DB(tuples):
+def store_game_logs_info_in_DB(tuples):
     db = pymysql.connect(host=DBInfo.DB_HOST, user=DBInfo.DB_USER, password=DBInfo.DB_PASSWORD, database=DBInfo.DB_NAME)
     cursor = db.cursor()
 
     sql = (
-                'INSERT INTO GameLogs(GameID, OT, IsTie, DayOfWeek, Date,StartTime,Stadium,TossResult,OTTossResult,Roof,Surface,Duration,Temperature,Wind,' +
-                'WTeamName,WFirstQuarter,WSecondQuarter,WThirdQuarter,WFourthQuarter,WOTTotal,WTotalScore,WRecord,WCoach,WFirstDowns,' +
-                'WPenalties,WPenaltyYards,WThirdDownAttempts,WThirdDownConversions,WFourthDownAttempts,WFourthDownConversions,WToP,' +
-                'LTeamName,LFirstQuarter,LSecondQuarter,LThirdQuarter,LFourthQuarter,LOTTotal,LTotalScore,LRecord,LCoach,LFirstDowns,' +
-                'LPenalties, LPenaltyYards,LThirdDownAttempts,LThirdDownConversions,LFourthDownAttempts, LFourthDownConversions,LToP) ' +
-                'VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, '
-                '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, '
-                '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, '
-                '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, '
-                '%s, %s, %s, %s, %s, %s, %s)')
+                'INSERT INTO GameLogsInfo(GameID, Week, OT, IsTie, DayOfWeek, Date, StartTime, Stadium, TossResult, OTTossResult, '
+                'Roof, Surface, Duration, Temperature, Wind)' 
+                'VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)')
+
+    for tuple in tuples:
+        res = cursor.execute(sql, (tuple['GameID'], tuple['Week'], tuple['OT'], tuple['IsTie'], tuple['DayOfWeek'], tuple['Date'],
+                                   tuple['StartTime'], tuple['Stadium'], tuple['TossResult'], tuple['OTTossResult'],
+                                   tuple['Roof'], tuple['Surface'], tuple['Duration'], tuple['Temperature'], tuple['Wind']
+                                   ))
+
+    db.commit()
+
+def store_game_logs_team_stats_in_DB(tuples):
+    db = pymysql.connect(host=DBInfo.DB_HOST, user=DBInfo.DB_USER, password=DBInfo.DB_PASSWORD,
+                         database=DBInfo.DB_NAME)
+    cursor = db.cursor()
+
+    sql = (
+            'INSERT INTO GameLogsTeamData(GameID, TeamName, FirstQuarter, SecondQuarter, ThirdQuarter, FourthQuarter, OTTotal,'
+            'TotalScore, Record, Coach, FirstDowns, Penalties, PenaltyYards, ThirdDownAttempts, ThirdDownConversions, '
+            'FourthDownAttempts, FourthDownConversions, ToP, IsAWin)'
+            'VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
+    )
 
     for tuple in tuples:
         res = cursor.execute(sql, (tuple['GameID'],
-                                   tuple['OT'],
-                                   tuple['IsTie'],
-                                   tuple['DayOfWeek'],
-                                   tuple['Date'],
-                                   tuple['StartTime'],
-                                   tuple['Stadium'],
-                                   tuple['TossResult'],
-                                   tuple['OTTossResult'],
-                                   tuple['Roof'],
-                                   tuple['Surface'],
-                                   tuple['Duration'],
-                                   tuple['Temperature'],
-                                   tuple['Wind'],
-                                   tuple['WinningTeamInfo']['TeamName'],
-                                   tuple['WinningTeamInfo']['FirstQuarter'],
-                                   tuple['WinningTeamInfo']['SecondQuarter'],
-                                   tuple['WinningTeamInfo']['ThirdQuarter'],
-                                   tuple['WinningTeamInfo']['FourthQuarter'],
-                                   tuple['WinningTeamInfo']['OTTotal'],
-                                   tuple['WinningTeamInfo']['TotalScore'],
-                                   tuple['WinningTeamInfo']['Record'],
-                                   tuple['WinningTeamInfo']['Coach'],
-                                   tuple['WinningTeamInfo']['FirstDowns'],
-                                   tuple['WinningTeamInfo']['Penalties'],
-                                   tuple['WinningTeamInfo']['PenaltyYards'],
-                                   tuple['WinningTeamInfo']['ThirdDownAttempts'],
-                                   tuple['WinningTeamInfo']['ThirdDownConversions'],
-                                   tuple['WinningTeamInfo']['FourthDownAttempts'],
-                                   tuple['WinningTeamInfo']['FourthDownConversions'],
-                                   tuple['WinningTeamInfo']['ToP'],
-                                   tuple['LosingTeamInfo']['TeamName'],
-                                   tuple['LosingTeamInfo']['FirstQuarter'],
-                                   tuple['LosingTeamInfo']['SecondQuarter'],
-                                   tuple['LosingTeamInfo']['ThirdQuarter'],
-                                   tuple['LosingTeamInfo']['FourthQuarter'],
-                                   tuple['LosingTeamInfo']['OTTotal'],
-                                   tuple['LosingTeamInfo']['TotalScore'],
-                                   tuple['LosingTeamInfo']['Record'],
-                                   tuple['LosingTeamInfo']['Coach'],
-                                   tuple['LosingTeamInfo']['FirstDowns'],
-                                   tuple['LosingTeamInfo']['Penalties'],
-                                   tuple['LosingTeamInfo']['PenaltyYards'],
-                                   tuple['LosingTeamInfo']['ThirdDownAttempts'],
-                                   tuple['LosingTeamInfo']['ThirdDownConversions'],
-                                   tuple['LosingTeamInfo']['FourthDownAttempts'],
-                                   tuple['LosingTeamInfo']['FourthDownConversions'],
-                                   tuple['LosingTeamInfo']['ToP']
+                                   tuple['TeamName'],
+                                   tuple['FirstQuarter'],
+                                   tuple['SecondQuarter'],
+                                   tuple['ThirdQuarter'],
+                                   tuple['FourthQuarter'],
+                                   tuple['OTTotal'],
+                                   tuple['TotalScore'],
+                                   tuple['Record'],
+                                   tuple['Coach'],
+                                   tuple['FirstDowns'],
+                                   tuple['Penalties'],
+                                   tuple['PenaltyYards'],
+                                   tuple['ThirdDownAttempts'],
+                                   tuple['ThirdDownConversions'],
+                                   tuple['FourthDownAttempts'],
+                                   tuple['FourthDownConversions'],
+                                   tuple['ToP'],
+                                   tuple['IsAWin']
                                    ))
 
     db.commit()
@@ -609,14 +620,16 @@ def store_player_snapcounts_in_DB(tuples):
 
 
 if __name__ == "__main__":
-    parsed_game_logs = []
+    parsed_game_logs_info = []
+    parsed_game_logs_team_stats = []
     parsed_passing_tuples = []
     parsed_rush_receive_tuples = []
     parsed_snap_count_tuples = []
-    scrape_game_logs(parsed_game_logs, parsed_passing_tuples, parsed_rush_receive_tuples, parsed_snap_count_tuples)
+    scrape_game_logs(parsed_game_logs_info, parsed_game_logs_team_stats, parsed_passing_tuples, parsed_rush_receive_tuples, parsed_snap_count_tuples)
 
-    store_game_logs_in_DB(parsed_game_logs)
-    store_player_passing_in_DB(parsed_passing_tuples)
-    store_player_RR_in_DB(parsed_rush_receive_tuples)
-    store_player_snapcounts_in_DB(parsed_snap_count_tuples)
+    store_game_logs_info_in_DB(parsed_game_logs_info)
+    store_game_logs_team_stats_in_DB(parsed_game_logs_team_stats)
+    #store_player_passing_in_DB(parsed_passing_tuples)
+    #store_player_RR_in_DB(parsed_rush_receive_tuples)
+    #store_player_snapcounts_in_DB(parsed_snap_count_tuples)
 
