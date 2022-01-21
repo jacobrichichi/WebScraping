@@ -218,11 +218,11 @@ def get_scorebox(parsed_game_log, parsed_winning_team, parsed_losing_team, log_s
     else:
         parsed_first = first_team.find_all('div')
 
-        parsed_winning_team['Record'] = str(first_team.find_all('div')[4].contents[0])
-        parsed_winning_team['Coach'] = str(first_team.find('div', class_='datapoint').find('a').contents[0])
+        parsed_losing_team['Record'] = str(first_team.find_all('div')[4].contents[0])
+        parsed_losing_team['Coach'] = str(first_team.find('div', class_='datapoint').find('a').contents[0])
 
-        parsed_losing_team['Record'] = str(second_team.find_all('div')[4].contents[0])
-        parsed_losing_team['Coach'] = str(second_team.find('div', class_='datapoint').find('a').contents[0])
+        parsed_winning_team['Record'] = str(second_team.find_all('div')[4].contents[0])
+        parsed_winning_team['Coach'] = str(second_team.find('div', class_='datapoint').find('a').contents[0])
 
     sep_game_info = game_info.findAll('div')
 
